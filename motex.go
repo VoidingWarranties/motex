@@ -41,6 +41,8 @@ import (
 type Motex struct {
 	w sync.Mutex   // Blocks writes.
 	r sync.RWMutex // Blocks reads.
+
+	g sync.Mutex // Guards against Promote after RLock.
 }
 
 // Lock locks m for writing. If the lock is already locked for reading or
@@ -69,6 +71,8 @@ func (m *Motex) Unlock() {
 func (m *Motex) Demote() {
 	m.r.Unlock()
 	m.r.RLock()
+
+	m.g.Lock()
 }
 
 // Promote promotes m from a Demoted() Lock() to a lock for writing, blocking
@@ -81,6 +85,8 @@ func (m *Motex) Demote() {
 func (m *Motex) Promote() {
 	m.r.RUnlock()
 	m.r.Lock()
+
+	m.g.Unlock()
 }
 
 // RLock locks m for reading. If the lock is already locked for writing or

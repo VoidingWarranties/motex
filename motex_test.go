@@ -332,6 +332,14 @@ var misuseTests = []struct {
 			mo.Demote()
 		},
 	},
+	{
+		name: "Promote after RLock",
+		f: func() {
+			var mo Motex
+			mo.RLock()
+			mo.Promote()
+		},
+	},
 }
 
 func TestMotexMisuse(t *testing.T) {
