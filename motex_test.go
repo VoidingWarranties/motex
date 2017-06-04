@@ -103,11 +103,11 @@ func TestMotex(t *testing.T) {
 			wg.Add(n * len(test.funcs))
 			for i := 0; i < n; i++ {
 				for _, f := range test.funcs {
-					go func() {
+					go func(f func()) {
 						<-c
 						f()
 						wg.Done()
-					}()
+					}(f)
 				}
 			}
 			close(c)
