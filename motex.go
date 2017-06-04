@@ -1,3 +1,34 @@
+// Package motex implements a demoteable and promoteable exclusion lock.
+// Demoteable meaning a write lock can be changed to a read lock. Promoteable
+// meaning a demoted write lock can be changed back to a write lock.
+//
+// If Demote() and Promote() are never called, motex behaves identically to a
+// sync.RWMutex.
+//
+// A demoted lock continues to block calls to Lock, but calls to RLock will not
+// block.
+//
+// non-atomic read and update with sync.Mutex:
+//  var mu sync.Mutex
+//  var state int
+//  mu.RLock()
+//  copied := state
+//  mu.RUnlock()
+//  copied += 1 // ... do something resource intensive to modify the copied state.
+//  mu.Lock()
+//  state = copied
+//  mu.Unlock()
+//
+// atomic read and update with motex.Motex:
+//  var mo motex.Motex
+//  var state int
+//  mo.Lock()
+//  mo.Demote()
+//  copied := state
+//  copied += 1 // ... do something resource intensive to modiy the copied state.
+//  mo.Promote()
+//  state = copied
+//  mo.Unlock()
 package motex
 
 import (
@@ -28,7 +59,8 @@ func (m *Motex) Unlock() {
 	m.w.Unlock()
 }
 
-// Demote demotes m from a Lock() for writing to a lock for reading. It is a
+// Demote demotes m from a Lock() for writing to a lock for reading, unblocking
+// any calls to RLock. Other calls to Lock will continue to block. It is a
 // run-time error if m is not currently locked for writing. It is also a
 // run-time error if m is locked for writing but demoted on entry to Demote.
 //
@@ -39,8 +71,10 @@ func (m *Motex) Demote() {
 	m.r.RLock()
 }
 
-// Promote promotes m from a Demoted() Lock() to a lock for writing. It is a
-// run-time error if m is not currently a demoted lock.
+// Promote promotes m from a Demoted() Lock() to a lock for writing, blocking
+// all calls to RLock. If the lock is already RLocked, Promote blocks until the
+// lock is available (i.e. after RUnlock is called). It is a run-time error if
+// m is not currently a demoted lock.
 //
 // A demoted lock is not equivalent to an RLock. Only demoted locks can be
 // promoted.
